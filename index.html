@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1e40af" />
+  <meta name="description" content="Inspeção Semanal de Segurança (ISS) - Gestão de Segurança e Saúde para Contratadas de Investimentos" />
+  <title>ISS - Inspeção Semanal de Segurança</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icons/icon-192x192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-3d@2.0.1/dist/chartjs-plugin-3d.min.js"></script>
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .accordion-content { display: none; transition: max-height 0.2s ease-out; }
+    .accordion-button.open + .accordion-content { display: block; }
+    .result-bar { transition: width 0.5s ease-in-out; }
+    .concept-impedido { background-color: #EF4444; color: #fff; }
+    .concept-pessimo { background-color: #D97706; color: #fff; }
+    .concept-ruim { background-color: #F97316; color: #fff; }
+    .concept-regular { background-color: #F59E0B; color: #fff; }
+    .concept-melhorias { background-color: #84CC16; color: #fff; }
+    .concept-otimo { background-color: #22C55E; color: #fff; }
+    .concept-erro { background-color: #71717A; color: #fff; }
+    
+    /* PWA Install Prompt */
+    #install-prompt {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1e40af;
+      color: white;
+      padding: 12px;
+      text-align: center;
+      z-index: 1000;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      display: none;
+    }
+    
+    #install-prompt button {
+      background: white;
+      color: #1e40af;
+      border: none;
+      padding: 8px 16px;
+      margin: 0 5px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    /* Offline indicator */
+    #offline-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #EF4444;
+      color: white;
+      padding: 8px;
+      text-align: center;
+      z-index: 1000;
+      display: none;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <!-- Offline Indicator -->
+  <div id="offline-indicator">
+    Você está offline. Algumas funcionalidades podem estar limitadas.
+  </div>
+  
+  <!-- Install Prompt -->
+  <div id="install-prompt">
+    <p>Instalar aplicativo ISS para uma melhor experiência</p>
+    <button id="install-btn">Instalar</button>
+    <button id="dismiss-install">Agora não</button>
+  </div>
+
+  <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+    <header class="bg-white shadow-md rounded-xl p-6 mb-8 flex flex-col sm:flex-row items-center gap-4">
+      <img id="logo-img" alt="Logo" class="h-10 w-auto" />
+      <div class="flex-1 text-center sm:text-left">
+        <h1 class="text-2xl md:text-3xl font-bold text-blue-800">INSPEÇÃO SEMANAL DE SEGURANÇA (ISS)</h1>
+        <p class="text-sm md:text-base text-gray-600 mt-1">GESTÃO DE SEGURANÇA E SAÚDE PARA CONTRATADAS DE INVESTIMENTOS</p>
+      </div>
+    </header>
+
+    <form id="inspection-form" class="space-y-6">
+      <div class="bg-white shadow-md rounded-xl p-6">
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Informações Gerais</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+          <input type="text" id="gerencia" placeholder="Gerência" class="p-2 border rounded-md" />
+          <input type="text" id="contrato" placeholder="N° do Contrato" class="p-2 border rounded-md" />
+          <input type="text" id="admin_contrato" placeholder="Administrador de Contrato" class="p-2 border rounded-md" />
+          <input type="text" id="obra" placeholder="Obra" class="p-2 border rounded-md" />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <input type="text" id="engenheiro" placeholder="Engenheiro / Supervisor" class="p-2 border rounded-md" />
+            <input type="text" id="matricula_engenheiro" placeholder="Matricula Bancodoc" class="p-2 border rounded-md" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <input type="text" id="sesmt" placeholder="Profissional do SESMT" class="p-2 border rounded-md" />
+            <input type="text" id="matricula_sesmt" placeholder="Matricula Bancodoc" class="p-2 border rounded-md" />
+          </div>
+          <input type="text" id="atividades" placeholder="Descrição das Atividades" class="p-2 border rounded-md md:col-span-2" />
+          <input type="text" id="np" placeholder="NP" class="p-2 border rounded-md" />
+          <input type="text" id="inspecao_no" placeholder="Inspeção No." class="p-2 border rounded-md" />
+          <input type="date" id="data" class="p-2 border rounded-md" title="Data" />
+          <input type="time" id="hora" class="p-2 border rounded-md" title="Hora" />
+        </div>
+      </div>
+
+      <div id="accordion-container" class="space-y-4"></div>
+
+      <div class="bg-white shadow-md rounded-xl p-6">
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">Não Conformidades Encontradas</h2>
+        <p class="text-sm text-gray-600 mb-2">
+          Descreva abaixo as não conformidades observadas (uma por linha, se desejar listá-las separadamente).
+        </p>
+        <textarea id="nao_conformidades" rows="6" class="w-full border rounded-md p-3" placeholder="Ex.: Item 2.12 - Materiais soltos no andaime; Item 8.11 - Cabos no piso, etc."></textarea>
+      </div>
+
+      <div class="bg-white shadow-md rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div id="result-container" class="w-full md:w-2/3 hidden">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-lg font-semibold">Resultado: <span id="percentage-text" class="font-bold">0.00%</span></span>
+            <span id="concept-badge" class="px-3 py-1 rounded-full text-sm font-semibold"></span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-4">
+            <div id="result-bar" class="h-4 rounded-full result-bar bg-gray-400" style="width:0%"></div>
+          </div>
+        </div>
+        <button type="button" id="generate-pdf" class="w-full md:w-auto bg-blue-800 hover:bg-blue-900 text-white font-bold py-3 px-6 rounded-lg transition duration-300 shadow-lg">
+          Finalizar e Gerar PDF
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // ========= PWA FUNCTIONALITY =========
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('Service Worker registrado com sucesso:', registration);
+          })
+          .catch(error => {
+            console.log('Falha ao registrar Service Worker:', error);
+          });
+      });
+    }
+
+    // Online/Offline Detection
+    window.addEventListener('online', () => {
+      document.getElementById('offline-indicator').style.display = 'none';
+    });
+
+    window.addEventListener('offline', () => {
+      document.getElementById('offline-indicator').style.display = 'block';
+    });
+
+    // Check initial connection status
+    if (!navigator.onLine) {
+      document.getElementById('offline-indicator').style.display = 'block';
+    }
+
+    // PWA Install Prompt
+    let deferredPrompt;
+    const installPrompt = document.getElementById('install-prompt');
+    const installBtn = document.getElementById('install-btn');
+    const dismissBtn = document.getElementById('dismiss-install');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevenir que o prompt apareça automaticamente
+      e.preventDefault();
+      // Guardar o evento para usar depois
+      deferredPrompt = e;
+      // Mostrar nosso prompt personalizado
+      installPrompt.style.display = 'block';
+    });
+
+    installBtn.addEventListener('click', () => {
+      // Esconder nosso prompt
+      installPrompt.style.display = 'none';
+      // Mostrar o prompt de instalação do navegador
+      deferredPrompt.prompt();
+      // Aguardar resposta do usuário
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('Usuário aceitou a instalação');
+        } else {
+          console.log('Usuário recusou a instalação');
+        }
+        deferredPrompt = null;
+      });
+    });
+
+    dismissBtn.addEventListener('click', () => {
+      installPrompt.style.display = 'none';
+    });
+
+    // ========= APPLICATION CODE =========
+    document.addEventListener('DOMContentLoaded', () => {
+      // ========= LOGO =========
+      const logoImgEl = document.getElementById('logo-img');
+      let logoDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wwAAgMBgQSr9E0AAAAASUVORK5CYII=";
+      const LOGO_CANDIDATES = [
+        "https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image1.png",
+        "https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image2.png",
+        "https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image3.png",
+        "https://raw.githubusercontent.com/Reblix/dados-iss/main/logo.png",
+        "https://raw.githubusercontent.com/Reblix/dados-iss/main/media/logo.png"
+      ];
+      async function fetchAsDataURL(url) {
+        const res = await fetch(url, { cache: "no-cache" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const blob = await res.blob();
+        return await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+      (async () => {
+        for (const url of LOGO_CANDIDATES) {
+          try {
+            const dataUrl = await fetchAsDataURL(url);
+            if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
+              logoDataUrl = dataUrl;
+              break;
+            }
+          } catch (e) { /* tenta próximo */ }
+        }
+        logoImgEl.src = logoDataUrl;
+      })();
+
+      // ========= HELPERS DE IMAGEM =========
+      async function loadImage(src) {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('Falha ao carregar imagem: ' + src));
+          img.src = src;
+        });
+      }
+
+      // ========= DADOS DOS ITENS (mapeados do original) =========
+      const formItems = [
+        { category: '1. Controle Sistêmico (APR / PT)', items: [
+          { id: '1.1', text: 'O serviço possui APR e PT, que contemplam os cenários de riscos? Todos os campos foram preenchidos corretamente?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '1.2', text: 'A APR é de conhecimento, está assinada por todos os executantes da tarefa e disponível na frente de serviço? Toda liderança da contratada foi treinada nos padrões de APR e PT?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '1.3', text: "As tarefas da APR, estão de acordo com o potencial de severidade em função do cenário? Foram emitidas PT's para os riscos críticos aplicáveis aos investimentos?", barrier: 'Sistêmica', potential: 'A' },
+          { id: '1.4', text: 'A APR possui medidas coletivas preventivas adequadas e as mesmas estão implementadas?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '1.5', text: 'A PT foi emitida e liberada por profissionais treinados e autorizados?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '1.6', text: 'Há indicação formal do gestor da contratada para os emitentes ou liberadores de PT? As indicações estão atualizadas?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '1.7', text: 'Os trabalhadores sabem o procedimento em caso de incidente, acidente ou emergência?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '1.8', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '2. Andaimes', items: [
+          { id: '2.1', text: 'Os andaimes estão nivelados, aprumados,alinhados, estaiados ou travados e sinalizados corretamente?', barrier: 'Física', potential: 'A' },
+          { id: '2.2', text: 'Os andaimes são montados/desmontados por profissionais qualificados?', barrier: 'Física', potential: 'A' },
+          { id: '2.3', text: 'O check-list de liberação de montagem foi preenchido corretamente e estão no prazo?', barrier: 'Comportamental', potential: 'A' },
+          { id: '2.4', text: 'O risco de abalroamento contra o andaime está controlado (ponte rolante, EMVI,tubulações, redes elétricas,pontos quentes, etc..)?', barrier: 'Física', potential: 'A' },
+          { id: '2.5', text: 'A área isolada em torno do andaime, ou trabalhos em altura, corresponde a uma distância segura durante a montagem, desmontagem e em uso?', barrier: 'Física', potential: 'A' },
+          { id: '2.6', text: 'A torre isolada tem altura máxima igual a 4 vezes a menor largura da base?', barrier: 'Física', potential: 'A' },
+          { id: '2.7', text: 'O piso está afixado a estrutura, sem aberturas, rachaduras e madeiras podres e com nó?', barrier: 'Física', potential: 'A' },
+          { id: '2.8', text: 'O guarda corpo possui travessas com 1,20m e 0,70m de altura e possui rodapé de 0,20m de altura?', barrier: 'Física', potential: 'A' },
+          { id: '2.9', text: 'Está sendo cumprida a proibição de montar, desmontar, descer, subir com condições climáticas adversas (chuvas, ventos fortes, nevoeiros)?', barrier: 'Comportamental', potential: 'A' },
+          { id: '2.10', text: 'As escadas de acesso estão bem afixadas e seguras(degraus uniformes entre 25 a 30cm)?', barrier: 'Física', potential: 'B' },
+          { id: '2.11', text: 'Escadas de acesso acima de 3m possui gaiola de proteção e/ou trava-quedas?', barrier: 'Física', potential: 'A' },
+          { id: '2.12', text: 'Há materiais, ferramentas e peças de montagens soltas nos andaimes?', barrier: 'Comportamental', potential: 'B' },
+          { id: '2.13', text: 'Os acessos e corredores dos andaimes estão obstruídos?', barrier: 'Comportamental', potential: 'B' },
+          { id: '2.14', text: 'O andaime possui placa de identificação e liberação?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '2.15', text: 'A sinalização está de acordo com uso do andaime?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '2.16', text: 'Andaimes móveis possuem trava nos rodízios?', barrier: 'Física', potential: 'A' },
+          { id: '2.17', text: 'Existe regra específica para movimentação com a plataforma isenta de materiais e colaboradores?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '2.18', text: 'Foi realizado o pré-uso do andaime e as medidas de controle atende?', barrier: 'Comportamental', potential: 'A' },
+          { id: '2.19', text: 'Os andaimes acima de 6 metros e/ou em balanço possuem projeto e cálculo estrutural com ART?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '2.20', text: 'As pilhas de material para montagem ou desmontagem de peças estão armazenadas de forma e altura que garantam a sua estabilidade e facilitem o seu manuseio?', barrier: 'Física', potential: 'B' },
+          { id: '2.21', text: 'O andaime está devidamente aterrado e conferido por profissional qualificado? Ou sua instalação foi orientada por profissional qualificado?', barrier: 'Física', potential: 'B' },
+          { id: '2.22', text: 'Os gaveteiros de andaime montados nas áreas onde existem risco de queda de materiais em níveis inferiores estão distantes de guarda corpos das passarelas e plataformas ou com proteção contra queda?', barrier: 'Física', potential: 'B' },
+          { id: '2.23', text: 'Foi realizado pré uso do andaime pelos usuários, verificando suas condições e interferências?', barrier: 'Física', potential: 'B' },
+          { id: '2.24', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '3. Armações de Aço', items: [
+          { id: '3.1', text: 'A dobragem e corte de ferro é feita sobre bancada ou plataformas apropriadas e estáveis?', barrier: 'Comportamental', potential: 'B' },
+          { id: '3.2', text: 'O local destinado a corte, dobra e movimentação de ferro é cercado, fora de área de circulação?', barrier: 'Física', potential: 'C' },
+          { id: '3.3', text: 'O piso é resistente, nivelado e antiderrapante, com cobertura contra intempéries e quedas de materiais?', barrier: 'Física', potential: 'B' },
+          { id: '3.4', text: 'As lâmpadas de iluminação estão protegidas contra impactos?', barrier: 'Física', potential: 'C' },
+          { id: '3.5', text: 'Todas as pontas de vergalhões existentes na obra, canteiros e pátios de estocagem com risco de contato e perfuração de pessoas estão protegidas?', barrier: 'Física', potential: 'C' },
+          { id: '3.6', text: 'Existem pranchas de madeira para circulação de pessoas sobre armações?', barrier: 'Física', potential: 'C' },
+          { id: '3.7', text: 'Os serviços à quente e o uso de ferramentas manuais possuem medidas de proteções coletivas para as demais equipes de armação?', barrier: 'Física', potential: 'C' },
+          { id: '3.8', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '4. Carga Suspensa', items: [
+          { id: '4.1', text: 'O operador é qualificado e certificado para o equipamento de guindar e/ou guindauto utilizado?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '4.2', text: 'O operador tem conhecimento sobre o peso da carga e as patolas estão 100% abertas?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '4.3', text: 'O RIGGER e operador do Equipamento, estão exercendo a autoridade de parar a movimentação por falta de isolamento / sinalização, presença de terceiros na área isolada, etc..?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '4.4', text: 'O equipamento possui capacidade de carga máxima visível?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '4.5', text: 'O equipamento atende aos requisitos da diretriz de risco critico Gerdau - EMVI?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '4.6', text: 'O equipamento está trabalhando respeitando a tabela de carga e está disponível no equipamento?', barrier: 'Comportamental', potential: 'B' },
+          { id: '4.7', text: 'Existe plano de Rigging emitido e aprovado por profissional qualificado (Gerdau / Contratada) para içamentos considerados CRÍTICOS e está sendo cumprido?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '4.8', text: 'O içamento está sendo realizado em condições climáticas favoráveis? (Dia claro, sem a presença de ventos e/ou intempéries).', barrier: 'Sistêmica', potential: 'B' },
+          { id: '4.9', text: 'A carga, está sendo guiada por dispositivo de segurança adequado (cordas, etc...)?', barrier: 'Física', potential: 'B' },
+          { id: '4.10', text: 'Os sinaleiros ou supervisores de içamentos estão a uma distância segura da carga?', barrier: 'Comportamental', potential: 'B' },
+          { id: '4.11', text: 'Os acessórios de içamentos (cabos de aço, ganchos com travas , cintas, etc.) estão em boas condições e foram verificados pelo RIGGER / operador na inspeção de pré uso?', barrier: 'Física', potential: 'A' },
+          { id: '4.12', text: 'Está sendo usado o "quebra-quinas" sobre as quinas "vivas"?', barrier: 'Física', potential: 'B' },
+          { id: '4.13', text: 'O Sinaleiro está treinado e identificado com colete alusivo? Operador atende somente os sinais emitidos pelo Sinaleiro?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '4.14', text: 'Existe um sistema eficaz de comunicação entre Sinaleiro e Operador ?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '4.15', text: 'Outros:', barrier: 'Comportamental', potential: 'NP' },
+        ]},
+        { category: '5. Serra Circular de Bancada Fixa', items: [
+          { id: '5.1', text: 'A serra circular é dotada de mesa estável com as polias totalmente protegidas ?', barrier: 'Física', potential: 'B' },
+          { id: '5.2', text: 'A serra circular está aterrada?', barrier: 'Física', potential: 'B' },
+          { id: '5.3', text: 'Existe bloqueio físico na bancada, com cadeado, para evitar o uso indevido da serra, com sinalização de acesso restrito?', barrier: 'Física', potential: 'A' },
+          { id: '5.4', text: 'O disco está afiado, travado e não apresenta dentes trincados ou quebrados ?', barrier: 'Física', potential: 'A' },
+          { id: '5.5', text: 'A serra é provida de coifa protetora do disco, cutelo divisor e coletor de serragem ?', barrier: 'Física', potential: 'A' },
+          { id: '5.6', text: 'A carpintaria possui sinalização legível e clara proibindo o corte de peças pequenas no disco de bancada?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '5.7', text: 'A iluminação é adequada e as lâmpadas de iluminação estão protegidas contra impactos?', barrier: 'Física', potential: 'C' },
+          { id: '5.8', text: 'O piso é resistente, nivelado e antiderrapante, e existe cobertura para proteção intempéries?', barrier: 'Física', potential: 'C' },
+          { id: '5.9', text: 'A carpitaria dispõem de extintor no local, o colaborador foi treinado em combate a incêndio?', barrier: 'Física', potential: 'B' },
+          { id: '5.10', text: 'Os Operadores, estão identificados num quadro com as fotos dos mesmos e da supervisão e existe um procedimento de segurança formalizado com as devidas responsabilidades do operador / supervisão? O colaborador possui identificação pessoal conforme NR - 12 e NR - 18?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '5.11', text: 'Existe local adequado para armazenagem de madeira e o mesmo está organizado e identificado?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '5.12', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '6. Equipamento de Proteção Individual', items: [
+          { id: '6.1', text: 'Todos os colaboradores estão usando os EPIs básicos, específicos e em boas condições? Os EPIs são adequados aos riscos das atividades? Quando aplicável são realizados pré-uso dos mesmos?', barrier: 'Comportamental', potential: 'B' },
+          { id: '6.2', text: 'Há evidências da exigência do uso dos EPIs nas frentes de serviço pela supervisão da contratada? (DDS, Treinamentos)', barrier: 'Sistêmica', potential: 'B' },
+          { id: '6.3', text: 'As contratadas possuem estoque de EPIs no canteiro?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '6.4', text: 'O recolhimento e descarte dos EPIs atendem os requisitos ambientais?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '6.5', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '7. Bloqueio de Fontes de Energia', items: [
+          { id: '7.1', text: 'O Mapa de Bloqueio de Energia, foi preenchido, seguido e todas as fontes de energia estão bloqueadas?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '7.2', text: 'Os colaboradores estão treinados no procedimento de Bloqueio de fontes de energia?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '7.3', text: 'Todos os colaboradores cumprem o padrão de bloqueio de fonte de energia?', barrier: 'Comportamental', potential: 'A' },
+          { id: '7.4', text: 'Todos os envolvidos na atividade, possuem seus cadeados e etiqueta individuais, com telefone, nome da empresa e foto?', barrier: 'Física', potential: 'A' },
+          { id: '7.5', text: 'Foi preenchido na PT - Trabalho com fontes de energias perigosas e seguem os 6 passos?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '7.6', text: 'Foi feito o aterramento do sistema por profissional qualificado antes do ponto de trabalho?', barrier: 'Física', potential: 'A' },
+          { id: '7.7', text: 'A contratada está cumprindo o protocolo do risco crítico - Bloqueio de Fontes de Energia?', barrier: 'Comportamental', potential: 'A' },
+          { id: '7.8', text: 'A contratada tem ciência cumpre os procedimentos específicos para serviços elétricos da Unidade?', barrier: 'Comportamental', potential: 'A' },
+          { id: '7.9', text: 'Outros:', barrier: 'Física', potential: 'A' },
+        ]},
+        { category: '8. Eletricidade', items: [
+          { id: '8.1', text: 'A empresa autoriza somente colaboradores capacitados ou qualificados, habilitados e com os EPIs específicos conforme NR10 para executar atividades com eletricidade?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '8.2', text: 'Todos os equipamentos elétricos portáteis possuem pré uso?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '8.3', text: 'Todos os equipamentos elétricos portáteis possuem selo de inspeção Gerdau?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '8.4', text: 'Há validade do selo está em dia?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '8.5', text: 'O risco de contato acidental com componentes energizados está controlado?', barrier: 'Física', potential: 'A' },
+          { id: '8.6', text: 'Os EPIs e feramentas utilizados para intervenção nas instalações elétricas são adequados a voltagem?', barrier: 'Física', potential: 'A' },
+          { id: '8.7', text: 'Os EPIs para trabalhar em instalações estão em boas condições, válidos e com os testes dentro do prazo?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '8.8', text: 'Todos os painéis fixo, movéis e tomadas elétricas estão identificados corretamente e limpos?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '8.9', text: 'Todos os painéis elétricos possuem disjuntores diferenciais residuais de segurança (DR)?', barrier: 'Física', potential: 'A' },
+          { id: '8.10', text: 'Todas as tomadas possuem pino de aterramento ou o equipamento estão isolado?', barrier: 'Física', potential: 'A' },
+          { id: '8.11', text: 'Os cabos e extensões elétricas são mantidos suspensos e em boas condições?', barrier: 'Física', potential: 'B' },
+          { id: '8.12', text: 'As máquinas e equipamentos próximos a rede elétrica estão aterrados e os trabalhos próximos a alta tensão respeitam a distância de 3m?', barrier: 'Física', potential: 'A' },
+          { id: '8.13', text: 'Formulário de perfuração (piso/parade e escavação), esta liberado pelo eletricista?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '8.14', text: 'O colaborador da contratada está com o selo de autorização para atuar em eletricidade?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '8.15', text: 'Outros:', barrier: 'Sistêmica', potential: 'NP' },
+        ]},
+        { category: '9. EMVI - Equipamentos Móveis / Veículos Industriais', items: [
+          { id: '9.1', text: 'O EMVI possui Laudo de Inspeção Técnico assinado por Profissional Habilitado? Os laudos estão atualizados?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '9.2', text: 'O EMVI possui as inspeções de pré-uso preenchidas corretamente? Há itens que interditam claramente o equipamento?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '9.3', text: 'Os operadores possuem qualificação, certificação, CNH (exceto para plataformas elevatórias) e autorização emitida pela empresa vigentes?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '9.4', text: 'O EMVI possui sua capacidade de carga máxima identificada?', barrier: 'Física', potential: 'C' },
+          { id: '9.5', text: 'O EMVI possui cinto de segurança e os demais dispositivos de segurança funcionando?', barrier: 'Física', potential: 'B' },
+          { id: '9.6', text: 'O EMVI esta dimensionado em função da carga movimentada?', barrier: 'Física', potential: 'A' },
+          { id: '9.7', text: 'Todos os equipamentos móveis possuem alarme sonoro de Ré e iluminação de advertência?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '9.8', text: 'Existe pessoa qualificada, treinada e autorizada no solo para operar plataforma elevatória em caso de emergência?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '9.9', text: 'O EMVI esta isento de vazamentos de óleo e/ou combustíveis?', barrier: 'Física', potential: 'C' },
+          { id: '9.10', text: 'EMVI Há kits de emergência ambiental?', barrier: 'Física', potential: 'C' },
+          { id: '9.11', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '10. Escadas, Rampas e Passarelas', items: [
+          { id: '10.1', text: 'A escada de mão está posicionada em local isento de risco de contato acidental com equipamentos e redes elétricas?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '10.2', text: 'A escada de mão está amarrada ou sendo segura por outro colaborador?', barrier: 'Física', potential: 'B' },
+          { id: '10.3', text: 'A escada de mão possui pré uso?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '10.4', text: 'As escadas, rampas e/ou passarelas estão dimensionadas de acordo com as cargas existentes?', barrier: 'Física', potential: 'C' },
+          { id: '10.5', text: 'A escada, rampas e/ou passarela estão em boas condições de uso, sem trincas, rachaduras, abertura no piso e madeiras com nó?', barrier: 'Física', potential: 'C' },
+          { id: '10.6', text: 'Os desníveis de piso, possuem degraus, conforme NR 18?', barrier: 'Física', potential: 'C' },
+          { id: '10.7', text: 'A escada, rampas e/ou passarela possuem guarda-corpo com travessas a 0,70 e 1,20m e rodapé? As estruturas possuem resistencia conforme projeto?', barrier: 'Física', potential: 'A' },
+          { id: '10.8', text: 'As rampas são providas de peças transversais para apoio dos pés?', barrier: 'Física', potential: 'B' },
+          { id: '10.9', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '11. Escavações', items: [
+          { id: '11.1', text: 'A PT com escavações foi emitida,liberada e divulgada antes do início das atividades,está na frente de serviços e as proteções coletivas estão sendo cumpridas?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '11.2', text: 'O risco de desmoronamento está controlado (rampas de 45° ou escoramento)?', barrier: 'Física', potential: 'A' },
+          { id: '11.3', text: 'O acesso a escavação é seguro?', barrier: 'Física', potential: 'B' },
+          { id: '11.4', text: 'Há iluminação noturna quando aplicável?', barrier: 'Física', potential: 'B' },
+          { id: '11.5', text: 'A escavação está sinalizada e com proteção nas laterais?', barrier: 'Física', potential: 'B' },
+          { id: '11.6', text: 'As proteções são resistentes contra queda de pessoas ou veículos?', barrier: 'Física', potential: 'B' },
+          { id: '11.7', text: 'A escavação permite a saída e o resgate rápido de colaboradores?', barrier: 'Física', potential: 'B' },
+          { id: '11.8', text: 'Foi realizado simulado de emergência, quando aplicável?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '11.9', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '12. Espaço Confinado', items: [
+          { id: '12.1', text: 'A Contratada está cumprindo o protocolo do risco crítico espaço confinado?', barrier: 'Comportamental', potential: 'A' },
+          { id: '12.2', text: 'A Permissão de Trabalho em Espaço Confinado foi emitida,liberada, divulgada, fixada na entrada do espaço confinado e está sendo cumprida?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '12.3', text: 'Existe um "vigia" qualificado em contato com as pessoas dentro do espaço confinado?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '12.4', text: 'As pessoas que entraram no espaço confinado deixaram os crachás com o vigia?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '12.5', text: 'Todos os envolvidos na atividade de espaço confinado, possuem treinamento vigente e possuem identificação de habilitação para trabalho em espaço confinado?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '12.6', text: 'Todos das equipes envolvidas possuem treinamentos específico no uso de carboximetro e oxímetro?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '12.7', text: 'Os colaboradores realizaram, etilômetria e aferição arterial?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '12.8', text: 'A Contratada tem procedimento de emergência e realiza simulado conforme NR - 33?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '12.9', text: 'Todos os envolvidos na atividade estão de barba feita?', barrier: 'Comportamental', potential: 'B' },
+          { id: '12.10', text: 'Cadastro de espaço confinado esta anexo a APR?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '12.11', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '13. Ferramentas Manuais/ e ou Equipamentos Portáteis Elétricos', items: [
+          { id: '13.1', text: 'As ferramentas portáteis elétricas possuem duplo isolamento?', barrier: 'Física', potential: 'A' },
+          { id: '13.2', text: 'Foi realizada a inspeção de pré-uso nas ferramentas manuais elétricas e as não conformidades foram resolvidas?', barrier: 'Física', potential: 'A' },
+          { id: '13.3', text: 'Há itens de pré-uso que interditam claramente as ferramentas elétricas?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '13.4', text: 'Há prática de uso de ferramentas improvisadas?', barrier: 'Comportamental', potential: 'B' },
+          { id: '13.5', text: 'As ferramentas estão livres de "cabeças de cogumelo"?', barrier: 'Física', potential: 'B' },
+          { id: '13.6', text: 'Há dispositivos para fixação individual das ferramentas nos trabalhos em altura?', barrier: 'Física', potential: 'B' },
+          { id: '13.7', text: 'As mangueiras das ferramentas pneumáticas, possuem engate com corrente de segurança?', barrier: 'Física', potential: 'B' },
+          { id: '13.8', text: 'Tem bancada/eou cavalete disponível, e esta sendo utilizada para realizar cortes em materiais?', barrier: 'Física', potential: 'B' },
+          { id: '13.9', text: 'Existem biombos para projeção de particulas?', barrier: 'Física', potential: 'B' },
+          { id: '13.10', text: 'Outros: Falta de "mão-amiga" na frente de serviço para auxiliar na instalação de hastes de aterramento.', barrier: 'Fisica', potential: 'B' },
+        ]},
+        { category: '14. Controle de Risco de Incêndio', items: [
+          { id: '14.1', text: 'O equipamento oxi-acetilênico recebeu inspeção de pré-uso? O formulário possui itens que interditam claramente os equipamentos?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '14.2', text: 'Os serviços à quente com tarefa de potencial de severidade A e B, possui a APR e Permissão de Trabalho?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '14.3', text: 'As duas mangueiras possuem válvula contra retrocesso de chama junto a caneta a ao cilindro?', barrier: 'Física', potential: 'A' },
+          { id: '14.4', text: 'Os leitos de cabos elétricos e vias de acesso e circulação de pessoas estão protegidos contra fagulhas, respingos de solda e projeçaõ de partículas de ferramentas rotativas?', barrier: 'Física', potential: 'B' },
+          { id: '14.5', text: 'Existe extintor de incêndio na frente de serviço e os mesmos estão adequados ao uso, limpos e desimpedidos?', barrier: 'Física', potential: 'B' },
+          { id: '14.6', text: 'As equipes são treinadas para combate a principios de incêndio?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '14.7', text: 'Existe líquido inflamável com ponto de fulgor abaixo de 37,7º C e liberação da FISPQ?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '14.8', text: 'Os produtos inflamáveis e perigosos são acondicionados e transportados corretamente?', barrier: 'Física', potential: 'A' },
+          { id: '14.9', text: 'Os cilindros de gás, são utilizados e transportado em pé e presos aos carrinhos?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '14.10', text: 'Os cilindros de gás são estocados adequadamente, amarrados e com capacete?', barrier: 'Física', potential: 'B' },
+          { id: '14.11', text: 'Todos os extintores passaram por inspeção mensal realizada pela contratada?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '14.12', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '15. Organização, Higiene e Limpeza', items: [
+          { id: '15.1', text: 'A área de trabalho está limpa e organizada sem entulhos, sucatas e pontas de prego?', barrier: 'Comportamental', potential: 'C' },
+          { id: '15.2', text: 'O armazenamento de materiais possui acesso fácil e corredores?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '15.3', text: 'Os resíduos gerados na obra estão devidamente separados e isentos de extremidades pontiagudas e/ou cortantes?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '15.4', text: 'Os resíduos gerados na obra são descartados periodicamente em local apropriado?', barrier: 'Comportamental', potential: 'C' },
+          { id: '15.5', text: 'O posto de trabalho possui água potável e copos disponíveis? Há recepientes dimencionados corretamente para coleta dos mesmos?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '15.6', text: 'Os sanitários e/ou vestiários são suficientes, adequados e limpos?', barrier: 'Física', potential: 'C' },
+          { id: '15.7', text: 'Os sanitários e/ou vestiários dispõem de material de higiene e limpeza?', barrier: 'Física', potential: 'C' },
+          { id: '15.8', text: 'O vestiário dispõe de armarios limpos, identificados e com dispositivo de tranca para cada trabalhador?', barrier: 'Física', potential: 'C' },
+          { id: '15.9', text: 'Os locais sem iluminação natural, foram dimensionados e está em funcionamento um sistema de iluminação artificial adequado?', barrier: 'Física', potential: 'C' },
+          { id: '15.10', text: 'As plataformas de acesso estão isento de materiais de materiais com risco de queda no piso abaixo?', barrier: 'Física', potential: 'C' },
+          { id: '15.11', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '16. Produtos Químicos', items: [
+          { id: '16.1', text: 'As FISPQ estão disponíveis na frente de serviço,as pessoas envolvidas são treinadas e as recomendações estão sendo seguidas?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '16.2', text: 'Os serviços com produtos químicos, com tarefa de potencial de severidade A e B , possui a APR e Permissão de Trabalho?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '16.3', text: 'O deposito de produtos químicos posuem sinalização e proteção contra incêndios?', barrier: 'Física', potential: 'A' },
+          { id: '16.4', text: 'As áreas de estocagem provisórias possuem proteção contra derramamento acidental e são adequados?', barrier: 'Física', potential: 'B' },
+          { id: '16.5', text: 'Os produtos químicos em estocagem, são compativéis?', barrier: 'Física', potential: 'B' },
+          { id: '16.6', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '17. Quedas em Mesmo Nível', items: [
+          { id: '17.1', text: 'A área de trabalho está livre de obstáculos, materiais escorregadios e/ou saliências?', barrier: 'Física', potential: 'C' },
+          { id: '17.2', text: 'As proteções são resistentes e estão fixadas corretamente?', barrier: 'Física', potential: 'C' },
+          { id: '17.3', text: 'As aberturas no piso estão protegidas e identificadas?', barrier: 'Física', potential: 'C' },
+          { id: '17.4', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '18. Trabalho em Altura / e ou Telhado', items: [
+          { id: '18.1', text: 'Os serviços em altura, acima de 2m, possui a APR, Permissão de Trabalho e as mesmas estão sendo cumpridas?', barrier: 'Comportamental', potential: 'A' },
+          { id: '18.2', text: 'Existe um plano de resgate para os colaboradores trabalhando em altura?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '18.3', text: 'As proteções contra quedas, seja para acesso ou execução das tarefas, estão instaladas e usadas de acordo c/ os procedimentos de segurança e conforme projeto elaborado por profissional habilitado ?', barrier: 'Física', potential: 'A' },
+          { id: '18.4', text: 'Todos os colaboradores envolvidos, estão treinados e identificados (carga horária 8h / reciclagem bienal)? Treinamento NR35', barrier: 'Sistêmica', potential: 'A' },
+          { id: '18.5', text: 'Existe linha de vida adequada para os colaboradores prenderem o cinto de segurança e os mesmos estão protegidos contra quedas 100% do tempo?', barrier: 'Física', potential: 'A' },
+          { id: '18.6', text: 'Os pontos de ancoragem para cintos de segurança, foram definidos, sendo usados 100% do tempo e as ferramentas manuais estão amarradas? (linha de vida ou ancoragem provisória)', barrier: 'Física', potential: 'A' },
+          { id: '18.7', text: 'O isolamento abaixo dos trabalhos em altura é suficiente e estão sinalizados corretamente, conforme padrão Gerdau?', barrier: 'Física', potential: 'A' },
+          { id: '18.8', text: 'Está sendo cumprida a proibição de utilizar adornos como: brincos, pulseiras, relógios, cordões, anéis, etc?', barrier: 'Comportamental', potential: 'B' },
+          { id: '18.9', text: 'Todas as ferramentas e materiais utilizados em altura estão amarrados?', barrier: 'Comportamental', potential: 'A' },
+          { id: '18.10', text: 'As condições climáticas estão favoráveis( ausência de ventos fortes, chuvas, descargas atmosfericas e umidade) para execução da atividade?', barrier: 'Física', potential: 'A' },
+          { id: '18.11', text: 'Existem pranchões (duraluminio antiderrapante) instalados adequadamente para os colaboradores pisarem, se necessário?', barrier: 'Física', potential: 'A' },
+          { id: '18.12', text: 'O telhado está livre do acúmulo de ferramentas ou materiais pesados?', barrier: 'Física', potential: 'A' },
+          { id: '18.13', text: 'A rede de proteção contra quedas está instalada abaixo de 2 metros da área de trabalho para atividades em altura com vãos livres superiores à 10 metros?', barrier: 'Física', potential: 'A' },
+          { id: '18.14', text: 'As linhas de vida estão sinalizadas quanto a sua capacidade de carga e número de pessoas?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '18.15', text: 'Realização de Etilometria e aferição arterial?', barrier: 'Sistêmica', potential: 'A' },
+          { id: '18.16', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '19. Sinalização / Isolamento de Área / Interferências com Área Operacional', items: [
+          { id: '19.1', text: 'As frentes de serviços estão devidamente isoladas e sinalizadas, em sua totalidade?', barrier: 'Física', potential: 'B' },
+          { id: '19.2', text: 'O isolamento atende a sua finalidade de proteção física do perigo?', barrier: 'Física', potential: 'B' },
+          { id: '19.3', text: 'As placas de sinalização estão limpas, conservadas e bem afixadas? Há acesso específico e seguro para as frentes de serviços?', barrier: 'Física', potential: 'C' },
+          { id: '19.4', text: 'Esta sendo utilizado barreira fisica (Biombos) onde a risco de projeção de particulas, acessos indevidos ou isolamento de riscos operacionais?', barrier: 'Física', potential: 'A' },
+          { id: '19.5', text: 'Todos os colaboradores das frentes de serviços, próximas às áreas operacionais, conhecem os riscos específicos a que estão expostos?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '19.6', text: 'Existem sinalização de emergência, caminho seguro e sentido de deslocamento em todas as frentes de serviços?', barrier: 'Física', potential: 'B' },
+          { id: '19.7', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '20. Concretagem', items: [
+          { id: '20.1', text: 'O acesso ao local da concretagem é seguro? Há iluminação suficiente no ambiente de trabalho?', barrier: 'Física', potential: 'B' },
+          { id: '20.2', text: 'Os vibradores são aterrados e isolados?', barrier: 'Física', potential: 'B' },
+          { id: '20.3', text: 'Os operadores de bomba e caminhões são treinados e habilitados? Portam crachá de identificação certificando o treinamento?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '20.4', text: 'A limpeza do mangote da bomba é feita em local adequado?', barrier: 'Comportamental', potential: 'C' },
+          { id: '20.5', text: 'A fixação do mangote é adequada e existe dispositivo de segurança contra quedas?', barrier: 'Física', potential: 'B' },
+          { id: '20.6', text: 'O caminhão bomba lança está devidamente patolado?', barrier: 'Física', potential: 'A' },
+          { id: '20.7', text: 'As interferências do equipamento (ex.: lançador de concreto) com redes elétricas, equipamentos energizados, pontes rolantes e outros estão controladas?', barrier: 'Física', potential: 'A' },
+          { id: '20.8', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+        { category: '21. Serviços em Vias de Trânsito e Terraplenagem', items: [
+          { id: '21.1', text: 'A Sinalização de trânsito está adequada?', barrier: 'Física', potential: 'C' },
+          { id: '21.2', text: 'Há sinaleiros para todos os equipamentos móveis e/ou frentes de serviços?', barrier: 'Física', potential: 'C' },
+          { id: '21.3', text: 'Existem "Leiras" com altura mínima da metade da roda do maior veículo?', barrier: 'Física', potential: 'B' },
+          { id: '21.4', text: 'Existe a disponibilidade de caminhões pipas suficientes, para umidificação e limpeza das vias?', barrier: 'Física', potential: 'C' },
+          { id: '21.5', text: 'Todos os sinaleiros fazem uso do colete refletivo e apitos?', barrier: 'Física', potential: 'C' },
+          { id: '21.6', text: 'Existe sistema de comunicação, eficaz para controle de tráfego?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '21.7', text: 'Há acesso seguro para pedestres, sinalizado e isolado?', barrier: 'Física', potential: 'B' },
+          { id: '21.8', text: 'Outros:', barrier: 'Fisica', potential: 'B' },
+        ]},
+        { category: '22. Banheiro Químico / Área de Vivência', items: [
+          { id: '22.1', text: 'Há banheiros químicos para cada 20 colaboradores em atividade? Estão instalados em local adequado?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '22.2', text: 'Estão mantidos em estado de asseio e higiene?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '22.3', text: 'Estão instalados em compartimentos individuais separados masculino e feminino?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '22.4', text: 'Estão dotados de portas providas de fecho (ocupado e vazio)?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '22.5', text: 'Estão dotados de iluminação e ventilação adequadas?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '22.6', text: 'Possui recipientes com tampa para guardar papeis servidos?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '22.7', text: 'O local é de fácil acesso e não permitindo um deslocamento superior a 150m (posto de trabalho)?', barrier: 'Sistêmica', potential: 'C' },
+          { id: '22.8', text: 'O container tipo marítimo, uso para escritório, sanitários e guarda de material, possui laudo de descontaminação biológica e radiológica?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '22.9', text: 'O container atende o procedimento de instação Gerdau? (ateramento, liberação da elétrica, extintor de incêndio)', barrier: 'Sistêmica', potential: 'B' },
+          { id: '22.10', text: 'A estocagem de materiais no container é feita de forma ordenada, evitando a ocorrência de acidentes, obstrução dos acessos ou queda de materiais?', barrier: 'Sistêmica', potential: 'B' },
+          { id: '22.11', text: 'As tendas instaladas em canteiros estão chumbadas em sua base e estaiadas com no mínimo duas fixações para cada estaio (garantindo todos os pontos)? Possuem aterramento nas estruturas metálicas? Foi projetada e montada de forma que não acumule água sobre a lona?', barrier: 'Física', potential: 'B' },
+          { id: '22.12', text: 'Outros:', barrier: '', potential: 'NP' },
+        ]},
+      ];
+
+      // ========= RENDER DOS ACCORDIONS (COM RESPONSIVIDADE) =========
+      const accordionContainer = document.getElementById('accordion-container');
+      formItems.forEach((section, index) => {
+        const sectionId = `section-${index}`;
+        const sectionElement = document.createElement('div');
+        sectionElement.className = 'bg-white shadow-md rounded-xl overflow-hidden';
+
+        // Helper para gerar os botões de rádio
+        const generateRadioButtons = (itemId) => `
+          <div class="flex justify-around items-center space-x-2">
+            <label class="cursor-pointer flex items-center p-2 rounded-md hover:bg-gray-200 transition-colors">
+              <input type="radio" name="item-${itemId}" value="C" class="mr-1 h-4 w-4"> C
+            </label>
+            <label class="cursor-pointer flex items-center p-2 rounded-md hover:bg-gray-200 transition-colors">
+              <input type="radio" name="item-${itemId}" value="NC" class="mr-1 h-4 w-4"> NC
+            </label>
+            <label class="cursor-pointer flex items-center p-2 rounded-md hover:bg-gray-200 transition-colors">
+              <input type="radio" name="item-${itemId}" value="NA" class="mr-1 h-4 w-4"> NA
+            </label>
+          </div>
+        `;
+
+        sectionElement.innerHTML = `
+          <button type="button" class="accordion-button w-full text-left p-4 bg-gray-50 hover:bg-gray-200 focus:outline-none" data-target="#${sectionId}">
+            <h3 class="text-lg font-bold flex justify-between items-center">
+              <span>${section.category}</span>
+              <svg class="w-6 h-6 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </h3>
+          </button>
+          <div id="${sectionId}" class="accordion-content p-4">
+            <div class="hidden md:block overflow-x-auto">
+              <table class="w-full border-collapse min-w-[600px]">
+                <thead>
+                  <tr class="bg-gray-100 text-sm">
+                    <th class="border p-2 text-left">Item</th>
+                    <th class="border p-2 text-left w-1/2">Condição</th>
+                    <th class="border p-2 text-center">Barreira</th>
+                    <th class="border p-2 text-center">Potencial</th>
+                    <th class="border p-2 text-center" style="width: 180px;">Avaliação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${section.items.map(item => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="border p-2 font-semibold text-center">${item.id}</td>
+                      <td class="border p-2 text-sm">${item.text}</td>
+                      <td class="border p-2 text-sm text-center">${item.barrier}</td>
+                      <td class="border p-2 font-bold text-center">${item.potential}</td>
+                      <td class="border p-2">${generateRadioButtons(item.id)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="md:hidden space-y-4">
+              ${section.items.map(item => `
+                <div class="border rounded-lg p-4 bg-gray-50 shadow-sm">
+                  <div class="font-bold text-base mb-2">Item ${item.id}</div>
+                  <p class="text-sm text-gray-700 mb-3">${item.text}</p>
+                  <div class="grid grid-cols-2 gap-2 text-sm mb-4">
+                     <div class="bg-white p-2 rounded-md text-center">
+                       <span class="font-semibold block">Barreira</span>
+                       <span>${item.barrier || 'N/A'}</span>
+                     </div>
+                     <div class="bg-white p-2 rounded-md text-center">
+                        <span class="font-semibold block">Potencial</span>
+                        <span class="font-bold">${item.potential}</span>
+                     </div>
+                  </div>
+                  <div class="bg-gray-200 p-1 rounded-lg">
+                    ${generateRadioButtons(item.id)}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+        accordionContainer.appendChild(sectionElement);
+      });
+
+      // Acordeon toggle
+      document.querySelectorAll('.accordion-button').forEach(button => {
+        button.addEventListener('click', () => {
+          const content = document.querySelector(button.dataset.target);
+          const icon = button.querySelector('svg');
+          const isOpening = !button.classList.contains('open');
+
+          document.querySelectorAll('.accordion-button.open').forEach(openButton => {
+            if (openButton !== button) {
+              openButton.classList.remove('open');
+              openButton.querySelector('svg').classList.remove('rotate-180');
+              document.querySelector(openButton.dataset.target).style.display = 'none';
+            }
+          });
+
+          if (isOpening) {
+            content.style.display = 'block';
+            icon.classList.add('rotate-180');
+            button.classList.add('open');
+          } else {
+            content.style.display = 'none';
+            icon.classList.remove('rotate-180');
+            button.classList.remove('open');
+          }
+        });
+      });
+
+      // ========= CÁLCULO DE SCORE =========
+      const form = document.getElementById('inspection-form');
+      form.addEventListener('change', updateResults);
+
+      function calculateScore() {
+        const weights = { A: 3, B: 2, C: 1 };
+        let scoreAchieved = 0;
+        let maxPossibleScore = 0;
+
+        formItems.forEach(section => {
+          section.items.forEach(item => {
+            const radio = document.querySelector(`input[name="item-${item.id}"]:checked`);
+            const weight = weights[item.potential] || 0;
+            if (radio && (radio.value === 'C' || radio.value === 'NC')) {
+              maxPossibleScore += weight;
+              if (radio.value === 'C') scoreAchieved += weight;
+            }
+          });
+        });
+
+        if (maxPossibleScore === 0) return { percentage: 0, concept: 'IMPEDIDO', scoreAchieved: 0, maxPossibleScore: 0 };
+        const percentage = (scoreAchieved / maxPossibleScore) * 100;
+
+        let concept = '';
+        if (percentage < 50) concept = 'IMPEDIDO';
+        else if (percentage < 60) concept = 'PÉSSIMO';
+        else if (percentage < 70) concept = 'RUIM';
+        else if (percentage < 80) concept = 'REGULAR';
+        else if (percentage < 90) concept = 'OPORTUNIDADE DE MELHORIAS';
+        else concept = 'ÓTIMO';
+
+        return { percentage, concept, scoreAchieved, maxPossibleScore };
+      }
+
+      function updateResults() {
+        const { percentage, concept } = calculateScore();
+        const resultContainer = document.getElementById('result-container');
+        const percentageText = document.getElementById('percentage-text');
+        const resultBar = document.getElementById('result-bar');
+        const conceptBadge = document.getElementById('concept-badge');
+
+        resultContainer.classList.remove('hidden');
+        percentageText.textContent = `${percentage.toFixed(2)}%`;
+        resultBar.style.width = `${percentage}%`;
+
+        conceptBadge.textContent = concept.replace('OPORTUNIDADE DE MELHORIAS', 'MELHORIAS');
+        conceptBadge.className = 'px-3 py-1 rounded-full text-sm font-semibold ';
+
+        const conceptClasses = {
+          'IMPEDIDO': 'concept-impedido',
+          'PÉSSIMO': 'concept-pessimo',
+          'RUIM': 'concept-ruim',
+          'REGULAR': 'concept-regular',
+          'OPORTUNIDADE DE MELHORIAS': 'concept-melhorias',
+          'ÓTIMO': 'concept-otimo',
+          'ERRO': 'concept-erro'
+        };
+        if (conceptClasses[concept]) conceptBadge.classList.add(conceptClasses[concept]);
+
+        const barColors = {
+          'IMPEDIDO': 'bg-red-500',
+          'PÉSSIMO': 'bg-amber-700',
+          'RUIM': 'bg-orange-500',
+          'REGULAR': 'bg-yellow-500',
+          'OPORTUNIDADE DE MELHORIAS': 'bg-lime-500',
+          'ÓTIMO': 'bg-green-500',
+          'ERRO': 'bg-gray-500'
+        };
+        resultBar.className = `h-4 rounded-full result-bar ${barColors[concept] || 'bg-gray-400'}`;
+      }
+
+      // ========= GERAÇÃO DO PDF =========
+      document.getElementById('generate-pdf').addEventListener('click', () => {
+        const jspdfNs = window.jspdf;
+        if (!jspdfNs || !jspdfNs.jsPDF) {
+          console.error('jsPDF não carregado. Verifique o CDN e a ordem dos scripts.');
+          alert('jsPDF não foi carregado. Confira o console.');
+          return;
+        }
+        const { jsPDF } = jspdfNs;
+
+        (async function generate() {
+          const doc = new jsPDF();
+
+          const addHeader = () => {
+            if (logoDataUrl) {
+              try { 
+                doc.addImage(logoDataUrl, 'PNG', 14, 6, 25, 7);
+              } catch (e) { /* se falhar, segue sem logo */ }
+            }
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text('INSPEÇÃO SEMANAL DE SEGURANÇA (ISS)', doc.internal.pageSize.getWidth() / 2, 12, { align: 'center' });
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text('GESTÃO DE SEGURANÇA E SAÚDE PARA CONTRATADAS DE INVESTIMENTOS', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
+          };
+
+          const addGeneralInfo = () => {
+            const dateInput = document.getElementById('data');
+            const dateStr = dateInput && (dateInput.value || '');
+            doc.autoTable({
+              startY: 25,
+              theme: 'grid',
+              body: [
+                [{ content: `Gerência: ${document.getElementById('gerencia').value}` }, { content: `N° do Contrato: ${document.getElementById('contrato').value}` }],
+                [{ content: `Administrador de Contrato: ${document.getElementById('admin_contrato').value}` }, { content: `Obra: ${document.getElementById('obra').value}` }],
+                [{ content: `Engenheiro / Supervisor: ${document.getElementById('engenheiro').value}\nMatricula Bancodoc: ${document.getElementById('matricula_engenheiro').value}`, styles: { valign: 'middle' } },
+                 { content: `Profissional do SESMT: ${document.getElementById('sesmt').value}\nMatricula Bancodoc: ${document.getElementById('matricula_sesmt').value}`, styles: { valign: 'middle' } }],
+                [{ content: `Descrição das Atividades: ${document.getElementById('atividades').value}`, colSpan: 2 }],
+                [{ content: `NP: ${document.getElementById('np').value}` }, { content: `Inspeção No.: ${document.getElementById('inspecao_no').value}` }],
+                [{ content: `Data: ${dateStr}` }, { content: `Hora: ${document.getElementById('hora').value}` }],
+              ],
+              styles: { fontSize: 9, font: 'helvetica', fontStyle: 'bold', cellPadding: 1.5 }
+            });
+            return (doc.lastAutoTable && doc.lastAutoTable.finalY) || 25;
+          };
+
+          const addResultSummary = (startY) => {
+            const { percentage, concept } = calculateScore();
+            let currentY = startY + 5;
+            if (currentY > 220) { doc.addPage(); addHeader(); currentY = 25; }
+
+            const pageW = doc.internal.pageSize.getWidth();
+            const boxH = 20;
+            doc.setDrawColor(0);
+            doc.setLineWidth(0.5);
+            doc.rect(10, currentY, pageW - 20, boxH);
+
+            doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+            doc.text('PERCENTAGEM ALCANÇADA:', 15, currentY + 8);
+            doc.setFontSize(12);
+            doc.text(`${percentage.toFixed(2)}%`, 75, currentY + 8);
+
+            doc.setFontSize(10);
+            doc.text('CONCEITO:', 15, currentY + 15);
+            doc.setFontSize(12);
+            doc.text(concept.replace('OPORTUNIDADE DE MELHORIAS', 'MELHORIAS'), 40, currentY + 15);
+
+            return currentY + boxH + 5;
+          };
+
+          const addFormTables = (startY) => {
+            let currentY = startY;
+            formItems.forEach(section => {
+              const isSectionAnswered = section.items.some(item => document.querySelector(`input[name="item-${item.id}"]:checked`));
+              if (!isSectionAnswered) return;
+
+              const body = section.items.map(item => {
+                const radio = document.querySelector(`input[name="item-${item.id}"]:checked`);
+                if (!radio) return null;
+                return [
+                  { content: item.id },
+                  { content: item.text },
+                  { content: item.barrier },
+                  { content: item.potential, styles: { halign: 'center' } },
+                  { content: radio.value === 'C' ? 'X' : '', styles: { halign: 'center' } },
+                  { content: radio.value === 'NC' ? 'X' : '', styles: { halign: 'center' } },
+                  { content: radio.value === 'NA' ? 'X' : '', styles: { halign: 'center' } },
+                ];
+              }).filter(Boolean);
+
+              if (body.length === 0) return;
+
+              const approxHeight = (body.length + 2) * 8 + 10;
+              const pageH = doc.internal.pageSize.getHeight();
+              if (currentY + approxHeight > pageH - 20) {
+                doc.addPage();
+                addHeader();
+                currentY = 25;
+              }
+
+              doc.autoTable({
+                startY: currentY,
+                head: [[{ content: section.category, colSpan: 7, styles: { fillColor: [255, 193, 7], textColor: 0, fontStyle: 'bold' } }]],
+                theme: 'grid',
+                styles: { fontSize: 8 }
+              });
+
+              doc.autoTable({
+                startY: (doc.lastAutoTable && doc.lastAutoTable.finalY) || currentY,
+                head: [['ITEM', 'CONDIÇÃO', 'BARREIRA', 'POTENCIAL', 'C', 'NC', 'NA']],
+                body,
+                theme: 'grid',
+                headStyles: { fillColor: [220, 220, 220], textColor: 0, fontStyle: 'bold', fontSize: 8 },
+                styles: { fontSize: 8, cellPadding: 1 },
+                columnStyles: {
+                  0: { cellWidth: 12 }, 1: { cellWidth: 88 }, 2: { cellWidth: 20 }, 3: { cellWidth: 16 },
+                  4: { cellWidth: 8 }, 5: { cellWidth: 8 }, 6: { cellWidth: 8 }
+                }
+              });
+
+              currentY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 5) : currentY + 10;
+            });
+            return currentY;
+          };
+
+          function calculateLossPercentages() {
+            const weights = { A: 3, B: 2, C: 1 };
+            let totalWeight = 0;
+            let ncWeightA = 0, ncWeightB = 0, ncWeightC = 0;
+            let totalNcWeight = 0;
+
+            formItems.forEach(section => {
+              section.items.forEach(item => {
+                const radio = document.querySelector(`input[name="item-${item.id}"]:checked`);
+                const weight = weights[item.potential] || 0;
+                
+                if (radio && (radio.value === 'C' || radio.value === 'NC')) {
+                  totalWeight += weight;
+                  
+                  if (radio.value === 'NC') {
+                    totalNcWeight += weight;
+                    
+                    if (item.potential === 'A') ncWeightA += weight;
+                    else if (item.potential === 'B') ncWeightB += weight;
+                    else if (item.potential === 'C') ncWeightC += weight;
+                  }
+                }
+              });
+            });
+
+            const percNcA = totalWeight > 0 ? (ncWeightA / totalWeight) * 100 : 0;
+            const percNcB = totalWeight > 0 ? (ncWeightB / totalWeight) * 100 : 0;
+            const percNcC = totalWeight > 0 ? (ncWeightC / totalWeight) * 100 : 0;
+            const percAchieved = totalWeight > 0 ? ((totalWeight - totalNcWeight) / totalWeight) * 100 : 0;
+
+            return { percNcA, percNcB, percNcC, percAchieved };
+          }
+
+          const addPieChartAndNonConfs = async (startY) => {
+            const lossPercentages = calculateLossPercentages();
+            let currentY = startY;
+
+            const pageH = doc.internal.pageSize.getHeight();
+            const needed = 120;
+            if (currentY + needed > pageH - 20) { doc.addPage(); addHeader(); currentY = 25; }
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text('Resumo (Gráfico)', 14, currentY + 5);
+            currentY += 8;
+
+            const off = document.createElement('canvas');
+            off.width = 320; off.height = 180;
+            const ctx = off.getContext('2d');
+
+            if (window.Chart && window.Chart.plugins) {
+              window.Chart.register(window['chartjs-plugin-3d']);
+            }
+
+            const chart = new Chart(ctx, {
+              type: 'pie',
+              data: {
+                labels: [
+                  `Conformidades: ${lossPercentages.percAchieved.toFixed(1)}%`,
+                  `NC Severidade A: ${lossPercentages.percNcA.toFixed(1)}%`,
+                  `NC Severidade B: ${lossPercentages.percNcB.toFixed(1)}%`,
+                  `NC Severidade C: ${lossPercentages.percNcC.toFixed(1)}%`
+                ],
+                datasets: [{
+                  data: [
+                    lossPercentages.percAchieved,
+                    lossPercentages.percNcA,
+                    lossPercentages.percNcB,
+                    lossPercentages.percNcC
+                  ],
+                  backgroundColor: ['#22C55E', '#EF4444', '#60A5FA', '#F59E0B'],
+                  borderColor: ['#FFFFFF','#FFFFFF','#FFFFFF','#FFFFFF'],
+                  borderWidth: 2
+                }]
+              },
+              options: {
+                responsive: false,
+                animation: false,
+                plugins: {
+                  legend: { 
+                    display: true, 
+                    position: 'right',
+                    labels: { font: { size: 10 }, color: '#000' }
+                  },
+                  tooltip: { enabled: false },
+                  '3d': { enabled: true, alpha: 15, beta: 15 }
+                }
+              }
+            });
+
+            const chartImage = off.toDataURL('image/png');
+            chart.destroy();
+            off.remove();
+
+            const imgW = 120, imgH = 68;
+            doc.addImage(chartImage, 'PNG', 14, currentY, imgW, imgH);
+            currentY += imgH + 10;
+
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+            doc.text('Não Conformidades Encontradas', 14, currentY);
+            currentY += 4;
+
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+            const raw = (document.getElementById('nao_conformidades').value || '').trim();
+            const text = raw.length ? raw : 'Sem registros.';
+            const wrapped = doc.splitTextToSize(text, doc.internal.pageSize.getWidth() - 20);
+
+            let y = currentY + 4;
+            wrapped.forEach(line => {
+              if (y > pageH - 15) { doc.addPage(); addHeader(); y = 25; }
+              doc.text(line, 14, y);
+              y += 6;
+            });
+          };
+
+          // ==== EXECUÇÃO ====
+          addHeader();
+          const infoY = addGeneralInfo();
+          const afterSummary = addResultSummary(infoY);
+          const afterTables = addFormTables(afterSummary);
+          await addPieChartAndNonConfs(afterTables);
+
+          const nome = document.getElementById('inspecao_no').value || 'report';
+          doc.save(`iss_${nome}.pdf`);
+        })().catch(err => {
+          console.error('Erro ao gerar PDF:', err);
+          alert('Ocorreu um erro ao gerar o PDF. Verifique o console.');
+        });
+      });
+    });
+  </script>
+</body>
+</html>
