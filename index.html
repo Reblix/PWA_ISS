@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#1e40af" />
   <meta name="description" content="Inspeção Semanal de Segurança (ISS) - Gestão de Segurança e Saúde para Contratadas de Investimentos" />
   <title>ISS - Inspeção Semanal de Segurança</title>
-  <link rel="manifest" href="manifest.json" />
-  <link rel="icon" type="image/png" href="icons/icon-192x192.png" />
-  <link rel="apple-touch-icon" href="icons/icon-192x192.png" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" href="./icons/icon-192x192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192x192.png" />
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -87,18 +87,37 @@
       font-weight: bold;
       cursor: pointer;
       margin-left: 10px;
+      display: none;
+    }
+
+    /* Online indicator */
+    #online-indicator {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #22C55E;
+      color: white;
+      padding: 8px;
+      text-align: center;
+      z-index: 1000;
+      display: none;
     }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
-  <!-- Offline Indicator -->
+  <!-- Connection Indicators -->
   <div id="offline-indicator">
-    Você está offline. Algumas funcionalidades podem estar limitadas.
+    ⚠️ Você está offline. Algumas funcionalidades podem estar limitadas.
+  </div>
+  
+  <div id="online-indicator">
+    ✅ Conexão restaurada
   </div>
   
   <!-- Install Prompt -->
   <div id="install-prompt">
-    <p>Instalar aplicativo ISS para uma melhor experiência</p>
+    <p>📱 Instalar aplicativo ISS para uma melhor experiência</p>
     <button id="install-btn">Instalar</button>
     <button id="dismiss-install">Agora não</button>
   </div>
@@ -110,7 +129,7 @@
         <h1 class="text-2xl md:text-3xl font-bold text-blue-800">INSPEÇÃO SEMANAL DE SEGURANÇA (ISS)</h1>
         <p class="text-sm md:text-base text-gray-600 mt-1">GESTÃO DE SEGURANÇA E SAÚDE PARA CONTRATADAS DE INVESTIMENTOS</p>
       </div>
-      <button id="install-btn-header" class="hidden">Instalar App</button>
+      <button id="install-btn-header" class="hidden">📲 Instalar App</button>
     </header>
 
     <form id="inspection-form" class="space-y-6">
@@ -169,32 +188,38 @@
     // Register Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
-        // Para GitHub Pages, o service worker deve estar na raiz
-        navigator.serviceWorker.register('/sw.js')
+        // Primeiro tenta o caminho relativo
+        navigator.serviceWorker.register('./sw.js')
           .then(function(registration) {
             console.log('Service Worker registrado com sucesso: ', registration.scope);
-            
-            // Verificar se já existe uma versão instalada
             registration.update();
           })
           .catch(function(error) {
-            console.log('Falha ao registrar Service Worker: ', error);
-            
-            // Tentar caminho alternativo se o primeiro falhar
-            navigator.serviceWorker.register('./sw.js')
+            console.log('Falha ao registrar Service Worker com caminho relativo: ', error);
+            // Tenta caminho absoluto
+            navigator.serviceWorker.register('/PWA_ISS/sw.js')
               .then(function(registration) {
-                console.log('Service Worker registrado com caminho alternativo: ', registration.scope);
+                console.log('Service Worker registrado com caminho absoluto: ', registration.scope);
               })
               .catch(function(error2) {
-                console.log('Falha também com caminho alternativo: ', error2);
+                console.log('Falha também com caminho absoluto: ', error2);
               });
           });
       });
     }
 
     // Online/Offline Detection
+    function showOnlineIndicator() {
+      const indicator = document.getElementById('online-indicator');
+      indicator.style.display = 'block';
+      setTimeout(() => {
+        indicator.style.display = 'none';
+      }, 3000);
+    }
+
     window.addEventListener('online', function() {
       document.getElementById('offline-indicator').style.display = 'none';
+      showOnlineIndicator();
       console.log('Aplicação online');
     });
 
@@ -206,6 +231,9 @@
     // Check initial connection status
     if (!navigator.onLine) {
       document.getElementById('offline-indicator').style.display = 'block';
+    } else {
+      // Mostra indicador online por 2 segundos ao carregar
+      setTimeout(showOnlineIndicator, 1000);
     }
 
     // PWA Install Prompt
@@ -222,7 +250,7 @@
       // Guardar o evento para usar depois
       deferredPrompt = e;
       
-      // Mostrar nosso prompt personalizado
+      // Mostrar nossos prompts personalizados
       installPrompt.style.display = 'block';
       installBtnHeader.style.display = 'block';
       
@@ -235,6 +263,8 @@
     });
 
     installBtn.addEventListener('click', function() {
+      if (!deferredPrompt) return;
+      
       // Esconder nosso prompt
       installPrompt.style.display = 'none';
       installBtnHeader.style.display = 'none';
@@ -254,19 +284,19 @@
     });
 
     installBtnHeader.addEventListener('click', function() {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        
-        deferredPrompt.userChoice.then(function(choiceResult) {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('Usuário aceitou a instalação via botão do cabeçalho');
-            installBtnHeader.style.display = 'none';
-          } else {
-            console.log('Usuário recusou a instalação via botão do cabeçalho');
-          }
-          deferredPrompt = null;
-        });
-      }
+      if (!deferredPrompt) return;
+      
+      deferredPrompt.prompt();
+      
+      deferredPrompt.userChoice.then(function(choiceResult) {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('Usuário aceitou a instalação via botão do cabeçalho');
+          installBtnHeader.style.display = 'none';
+        } else {
+          console.log('Usuário recusou a instalação via botão do cabeçalho');
+        }
+        deferredPrompt = null;
+      });
     });
 
     dismissBtn.addEventListener('click', function() {
@@ -287,7 +317,7 @@
     }
 
     // ========= APPLICATION CODE =========
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', function() {
       // ========= LOGO =========
       const logoImgEl = document.getElementById('logo-img');
       let logoDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wwAAgMBgQSr9E0AAAAASUVORK5CYII=";
@@ -298,17 +328,23 @@
         "https://raw.githubusercontent.com/Reblix/dados-iss/main/logo.png",
         "https://raw.githubusercontent.com/Reblix/dados-iss/main/media/logo.png"
       ];
+      
       async function fetchAsDataURL(url) {
-        const res = await fetch(url, { cache: "no-cache" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const blob = await res.blob();
-        return await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
+        try {
+          const res = await fetch(url, { cache: "no-cache" });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const blob = await res.blob();
+          return await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {
+          throw e;
+        }
       }
-      (async () => {
+      
+      (async function loadLogo() {
         for (const url of LOGO_CANDIDATES) {
           try {
             const dataUrl = await fetchAsDataURL(url);
@@ -316,20 +352,12 @@
               logoDataUrl = dataUrl;
               break;
             }
-          } catch (e) { /* tenta próximo */ }
+          } catch (e) { 
+            console.log('Falha ao carregar logo:', url, e);
+          }
         }
         logoImgEl.src = logoDataUrl;
       })();
-
-      // ========= HELPERS DE IMAGEM =========
-      async function loadImage(src) {
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error('Falha ao carregar imagem: ' + src));
-          img.src = src;
-        });
-      }
 
       // ========= DADOS DOS ITENS (mapeados do original) =========
       const formItems = [
@@ -609,27 +637,28 @@
         ]},
       ];
 
-      // ========= RENDER DOS ACCORDIONS (COM RESPONSIVIDADE) =========
+      // ========= RENDER DOS ACCORDIONS =========
       const accordionContainer = document.getElementById('accordion-container');
+      
+      // Helper para gerar os botões de rádio
+      const generateRadioButtons = (itemId) => `
+        <div class="flex justify-around items-center space-x-2">
+          <label class="cursor-pointer flex items-center p-2 rounded-md hover:bg-gray-200 transition-colors">
+            <input type="radio" name="item-${itemId}" value="C" class="mr-1 h-4 w-4"> C
+          </label>
+          <label class="cursor-pointer flex items-center p-2 rounded-md hover:bg-gray-200 transition-colors">
+            <input type="radio" name="item-${itemId}" value="NC" class="mr-1 h-4 w-4"> NC
+          </label>
+          <label class="cursor-pointer flex items-center p-2 rounded-md hover:bg-gray-200 transition-colors">
+            <input type="radio" name="item-${itemId}" value="NA" class="mr-1 h-4 w-4"> NA
+          </label>
+        </div>
+      `;
+
       formItems.forEach((section, index) => {
         const sectionId = `section-${index}`;
         const sectionElement = document.createElement('div');
         sectionElement.className = 'bg-white shadow-md rounded-xl overflow-hidden';
-
-        // Helper para gerar os botões de rádio
-        const generateRadioButtons = (itemId) => `
-          <div class="flex justify-around items-center space-x-2">
-            <label class="cursor-pointer flex items-center p-2 rounded-md hover:bg-gray-200 transition-colors">
-              <input type="radio" name="item-${itemId}" value="C" class="mr-1 h-4 w-4"> C
-            </label>
-            <label class="cursor-pointer flex items-center p-2 rounded-md hover:bg-gray-200 transition-colors">
-              <input type="radio" name="item-${itemId}" value="NC" class="mr-1 h-4 w-4"> NC
-            </label>
-            <label class="cursor-pointer flex items-center p-2 rounded-md hover:bg-gray-200 transition-colors">
-              <input type="radio" name="item-${itemId}" value="NA" class="mr-1 h-4 w-4"> NA
-            </label>
-          </div>
-        `;
 
         sectionElement.innerHTML = `
           <button type="button" class="accordion-button w-full text-left p-4 bg-gray-50 hover:bg-gray-200 focus:outline-none" data-target="#${sectionId}">
@@ -789,7 +818,7 @@
       }
 
       // ========= GERAÇÃO DO PDF =========
-      document.getElementById('generate-pdf').addEventListener('click', () => {
+      document.getElementById('generate-pdf').addEventListener('click', function() {
         const jspdfNs = window.jspdf;
         if (!jspdfNs || !jspdfNs.jsPDF) {
           console.error('jsPDF não carregado. Verifique o CDN e a ordem dos scripts.');

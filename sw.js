@@ -1,9 +1,17 @@
 // sw.js
-const CACHE_NAME = 'iss-app-v2.0.0';
+const CACHE_NAME = 'iss-app-v3.0.0';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json'
+  './',
+  './index.html',
+  './manifest.json',
+  './icons/icon-72x72.png',
+  './icons/icon-96x96.png',
+  './icons/icon-128x128.png',
+  './icons/icon-144x144.png',
+  './icons/icon-152x152.png',
+  './icons/icon-192x192.png',
+  './icons/icon-384x384.png',
+  './icons/icon-512x512.png'
 ];
 
 // Instalação do Service Worker
@@ -14,7 +22,14 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Service Worker: Cacheando arquivos essenciais');
-        return cache.addAll(urlsToCache);
+        // Usando addAll com fallback para cada URL individualmente
+        return Promise.all(
+          urlsToCache.map(url => {
+            return cache.add(url).catch(error => {
+              console.log(`Falha ao cachear ${url}:`, error);
+            });
+          })
+        );
       })
       .then(() => {
         console.log('Service Worker: Instalação concluída');
@@ -49,15 +64,17 @@ self.addEventListener('activate', event => {
 
 // Interceptação de requisições
 self.addEventListener('fetch', event => {
-  // Para requisições de mesma origem, tenta cache primeiro
+  // Para requisições de mesma origem
   if (event.request.url.startsWith(self.location.origin)) {
     event.respondWith(
       caches.match(event.request)
         .then(cachedResponse => {
+          // Retorna do cache se disponível
           if (cachedResponse) {
             return cachedResponse;
           }
           
+          // Faz requisição da rede
           return fetch(event.request)
             .then(response => {
               // Verifica se é uma resposta válida
@@ -77,8 +94,18 @@ self.addEventListener('fetch', event => {
             })
             .catch(error => {
               console.log('Fetch failed; returning offline page instead.', error);
-              // Em caso de falha, pode retornar uma página offline personalizada
-              return caches.match('/index.html');
+              // Fallback para página offline
+              if (event.request.destination === 'document') {
+                return caches.match('./index.html');
+              }
+              // Para outros recursos, pode retornar um fallback ou null
+              return new Response('Offline', {
+                status: 503,
+                statusText: 'Service Unavailable',
+                headers: new Headers({
+                  'Content-Type': 'text/plain'
+                })
+              });
             });
         })
     );
