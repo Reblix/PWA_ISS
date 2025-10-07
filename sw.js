@@ -1,16 +1,9 @@
-const CACHE_NAME = 'iss-app-v1.0.0';
+// sw.js
+const CACHE_NAME = 'iss-app-v2.0.0';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/icons/icon-72x72.png',
-  '/icons/icon-96x96.png',
-  '/icons/icon-128x128.png',
-  '/icons/icon-144x144.png',
-  '/icons/icon-152x152.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-384x384.png',
-  '/icons/icon-512x512.png'
+  '/manifest.json'
 ];
 
 // Instalação do Service Worker
@@ -20,10 +13,16 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Service Worker: Cacheando arquivos');
+        console.log('Service Worker: Cacheando arquivos essenciais');
         return cache.addAll(urlsToCache);
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('Service Worker: Instalação concluída');
+        return self.skipWaiting();
+      })
+      .catch(error => {
+        console.log('Service Worker: Erro na instalação', error);
+      })
   );
 });
 
@@ -36,59 +35,52 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cache => {
           if (cache !== CACHE_NAME) {
-            console.log('Service Worker: Limpando cache antigo');
+            console.log('Service Worker: Removendo cache antigo', cache);
             return caches.delete(cache);
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => {
+      console.log('Service Worker: Ativação concluída');
+      return self.clients.claim();
+    })
   );
 });
 
 // Interceptação de requisições
 self.addEventListener('fetch', event => {
-  // Ignora requisições para APIs externas e CDNs
-  if (event.request.url.includes('cdn.tailwindcss.com') ||
-      event.request.url.includes('cdnjs.cloudflare.com') ||
-      event.request.url.includes('cdn.jsdelivr.net') ||
-      event.request.url.includes('fonts.googleapis.com') ||
-      event.request.url.includes('raw.githubusercontent.com')) {
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Retorna do cache se encontrado
-        if (response) {
-          return response;
-        }
-
-        // Faz requisição da rede
-        return fetch(event.request)
-          .then(response => {
-            // Verifica se a resposta é válida
-            if (!response || response.status !== 200 || response.type !== 'basic') {
+  // Para requisições de mesma origem, tenta cache primeiro
+  if (event.request.url.startsWith(self.location.origin)) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(cachedResponse => {
+          if (cachedResponse) {
+            return cachedResponse;
+          }
+          
+          return fetch(event.request)
+            .then(response => {
+              // Verifica se é uma resposta válida
+              if (!response || response.status !== 200 || response.type !== 'basic') {
+                return response;
+              }
+              
+              // Clona a resposta para adicionar ao cache
+              const responseToCache = response.clone();
+              
+              caches.open(CACHE_NAME)
+                .then(cache => {
+                  cache.put(event.request, responseToCache);
+                });
+              
               return response;
-            }
-
-            // Clona a resposta
-            const responseToCache = response.clone();
-
-            // Adiciona ao cache
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          })
-          .catch(() => {
-            // Fallback para página offline se a requisição falhar
-            if (event.request.destination === 'document') {
-              return caches.match('/');
-            }
-          });
-      })
-  );
+            })
+            .catch(error => {
+              console.log('Fetch failed; returning offline page instead.', error);
+              // Em caso de falha, pode retornar uma página offline personalizada
+              return caches.match('/index.html');
+            });
+        })
+    );
+  }
 });

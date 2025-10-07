@@ -76,6 +76,18 @@
       z-index: 1000;
       display: none;
     }
+
+    /* Install button in header */
+    #install-btn-header {
+      background: #1e40af;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -98,6 +110,7 @@
         <h1 class="text-2xl md:text-3xl font-bold text-blue-800">INSPEÇÃO SEMANAL DE SEGURANÇA (ISS)</h1>
         <p class="text-sm md:text-base text-gray-600 mt-1">GESTÃO DE SEGURANÇA E SAÚDE PARA CONTRATADAS DE INVESTIMENTOS</p>
       </div>
+      <button id="install-btn-header" class="hidden">Instalar App</button>
     </header>
 
     <form id="inspection-form" class="space-y-6">
@@ -155,24 +168,39 @@
     // ========= PWA FUNCTIONALITY =========
     // Register Service Worker
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+      window.addEventListener('load', function() {
+        // Para GitHub Pages, o service worker deve estar na raiz
         navigator.serviceWorker.register('/sw.js')
-          .then(registration => {
-            console.log('Service Worker registrado com sucesso:', registration);
+          .then(function(registration) {
+            console.log('Service Worker registrado com sucesso: ', registration.scope);
+            
+            // Verificar se já existe uma versão instalada
+            registration.update();
           })
-          .catch(error => {
-            console.log('Falha ao registrar Service Worker:', error);
+          .catch(function(error) {
+            console.log('Falha ao registrar Service Worker: ', error);
+            
+            // Tentar caminho alternativo se o primeiro falhar
+            navigator.serviceWorker.register('./sw.js')
+              .then(function(registration) {
+                console.log('Service Worker registrado com caminho alternativo: ', registration.scope);
+              })
+              .catch(function(error2) {
+                console.log('Falha também com caminho alternativo: ', error2);
+              });
           });
       });
     }
 
     // Online/Offline Detection
-    window.addEventListener('online', () => {
+    window.addEventListener('online', function() {
       document.getElementById('offline-indicator').style.display = 'none';
+      console.log('Aplicação online');
     });
 
-    window.addEventListener('offline', () => {
+    window.addEventListener('offline', function() {
       document.getElementById('offline-indicator').style.display = 'block';
+      console.log('Aplicação offline');
     });
 
     // Check initial connection status
@@ -185,23 +213,37 @@
     const installPrompt = document.getElementById('install-prompt');
     const installBtn = document.getElementById('install-btn');
     const dismissBtn = document.getElementById('dismiss-install');
+    const installBtnHeader = document.getElementById('install-btn-header');
 
-    window.addEventListener('beforeinstallprompt', (e) => {
+    window.addEventListener('beforeinstallprompt', function(e) {
+      console.log('beforeinstallprompt event fired');
       // Prevenir que o prompt apareça automaticamente
       e.preventDefault();
       // Guardar o evento para usar depois
       deferredPrompt = e;
+      
       // Mostrar nosso prompt personalizado
       installPrompt.style.display = 'block';
+      installBtnHeader.style.display = 'block';
+      
+      // Opcional: esconder após 30 segundos
+      setTimeout(function() {
+        if (installPrompt.style.display === 'block') {
+          installPrompt.style.display = 'none';
+        }
+      }, 30000);
     });
 
-    installBtn.addEventListener('click', () => {
+    installBtn.addEventListener('click', function() {
       // Esconder nosso prompt
       installPrompt.style.display = 'none';
+      installBtnHeader.style.display = 'none';
+      
       // Mostrar o prompt de instalação do navegador
       deferredPrompt.prompt();
+      
       // Aguardar resposta do usuário
-      deferredPrompt.userChoice.then((choiceResult) => {
+      deferredPrompt.userChoice.then(function(choiceResult) {
         if (choiceResult.outcome === 'accepted') {
           console.log('Usuário aceitou a instalação');
         } else {
@@ -211,9 +253,38 @@
       });
     });
 
-    dismissBtn.addEventListener('click', () => {
+    installBtnHeader.addEventListener('click', function() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        
+        deferredPrompt.userChoice.then(function(choiceResult) {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('Usuário aceitou a instalação via botão do cabeçalho');
+            installBtnHeader.style.display = 'none';
+          } else {
+            console.log('Usuário recusou a instalação via botão do cabeçalho');
+          }
+          deferredPrompt = null;
+        });
+      }
+    });
+
+    dismissBtn.addEventListener('click', function() {
       installPrompt.style.display = 'none';
     });
+
+    // Verificar se o app já está instalado
+    window.addEventListener('appinstalled', function(evt) {
+      console.log('Aplicativo ISS instalado com sucesso');
+      installPrompt.style.display = 'none';
+      installBtnHeader.style.display = 'none';
+    });
+
+    // Verificar no carregamento se já está instalado
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      console.log('Executando como PWA instalado');
+      installBtnHeader.style.display = 'none';
+    }
 
     // ========= APPLICATION CODE =========
     document.addEventListener('DOMContentLoaded', () => {
