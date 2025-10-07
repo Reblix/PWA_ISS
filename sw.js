@@ -1,5 +1,5 @@
 // sw.js
-const CACHE_NAME = 'iss-app-v3.0.0';
+const CACHE_NAME = 'iss-app-v4.0.0';
 const urlsToCache = [
   './',
   './index.html',
@@ -14,6 +14,15 @@ const urlsToCache = [
   './icons/icon-512x512.png'
 ];
 
+// URLs externas que precisamos fazer cache
+const externalUrlsToCache = [
+  'https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image1.png',
+  'https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image2.png',
+  'https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image3.png',
+  'https://raw.githubusercontent.com/Reblix/dados-iss/main/logo.png',
+  'https://raw.githubusercontent.com/Reblix/dados-iss/main/media/logo.png'
+];
+
 // Instalação do Service Worker
 self.addEventListener('install', event => {
   console.log('Service Worker: Instalando...');
@@ -22,14 +31,29 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         console.log('Service Worker: Cacheando arquivos essenciais');
-        // Usando addAll com fallback para cada URL individualmente
-        return Promise.all(
-          urlsToCache.map(url => {
-            return cache.add(url).catch(error => {
-              console.log(`Falha ao cachear ${url}:`, error);
+        
+        // Cache dos arquivos locais
+        const localCachePromises = urlsToCache.map(url => {
+          return cache.add(url).catch(error => {
+            console.log(`Falha ao cachear ${url}:`, error);
+          });
+        });
+        
+        // Cache das URLs externas (logos)
+        const externalCachePromises = externalUrlsToCache.map(url => {
+          return fetch(url)
+            .then(response => {
+              if (response.ok) {
+                return cache.put(url, response);
+              }
+              throw new Error(`HTTP ${response.status} for ${url}`);
+            })
+            .catch(error => {
+              console.log(`Falha ao cachear logo externo ${url}:`, error);
             });
-          })
-        );
+        });
+        
+        return Promise.all([...localCachePromises, ...externalCachePromises]);
       })
       .then(() => {
         console.log('Service Worker: Instalação concluída');
@@ -64,8 +88,10 @@ self.addEventListener('activate', event => {
 
 // Interceptação de requisições
 self.addEventListener('fetch', event => {
-  // Para requisições de mesma origem
-  if (event.request.url.startsWith(self.location.origin)) {
+  const url = new URL(event.request.url);
+  
+  // Para requisições de mesma origem e para as URLs externas de logo
+  if (url.origin === self.location.origin || externalUrlsToCache.includes(event.request.url)) {
     event.respondWith(
       caches.match(event.request)
         .then(cachedResponse => {
@@ -98,7 +124,6 @@ self.addEventListener('fetch', event => {
               if (event.request.destination === 'document') {
                 return caches.match('./index.html');
               }
-              // Para outros recursos, pode retornar um fallback ou null
               return new Response('Offline', {
                 status: 503,
                 statusText: 'Service Unavailable',

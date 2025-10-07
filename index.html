@@ -316,48 +316,69 @@
       installBtnHeader.style.display = 'none';
     }
 
-    // ========= APPLICATION CODE =========
-    document.addEventListener('DOMContentLoaded', function() {
-      // ========= LOGO =========
-      const logoImgEl = document.getElementById('logo-img');
-      let logoDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wwAAgMBgQSr9E0AAAAASUVORK5CYII=";
-      const LOGO_CANDIDATES = [
-        "https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image1.png",
-        "https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image2.png",
-        "https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image3.png",
-        "https://raw.githubusercontent.com/Reblix/dados-iss/main/logo.png",
-        "https://raw.githubusercontent.com/Reblix/dados-iss/main/media/logo.png"
-      ];
-      
-      async function fetchAsDataURL(url) {
-        try {
-          const res = await fetch(url, { cache: "no-cache" });
-          if (!res.ok) throw new Error("HTTP " + res.status);
-          const blob = await res.blob();
-          return await new Promise((resolve) => {
+      // ========= LOGO MANAGEMENT =========
+  let logoDataUrl = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjUwIiB2aWV3Qm94PSIwIDAgMjAwIDUwIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iNTAiIGZpbGw9IiMxZTQwYWIiLz48dGV4dCB4PSIxMCIgeT0iMzAiIGZpbGw9IndoaXRlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiPklTUyAtIExvZ290aXBvPC90ZXh0Pjwvc3ZnPg==";
+  
+  const LOGO_CANDIDATES = [
+    "./icons/logo.png", // Logo local como fallback
+    "https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image1.png",
+    "https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image2.png",
+    "https://raw.githubusercontent.com/Reblix/dados-iss/main/xl/media/image3.png",
+    "https://raw.githubusercontent.com/Reblix/dados-iss/main/logo.png",
+    "https://raw.githubusercontent.com/Reblix/dados-iss/main/media/logo.png"
+  ];
+
+  // Função para carregar logo com fallback offline
+  async function loadLogoWithFallback() {
+    const logoImgEl = document.getElementById('logo-img');
+    
+    // Tenta carregar do cache primeiro
+    for (const url of LOGO_CANDIDATES) {
+      try {
+        let response;
+        
+        if (url.startsWith('./')) {
+          // URL local - tenta do cache
+          const cache = await caches.open('iss-app-v4.0.0');
+          response = await cache.match(url);
+        } else {
+          // URL externa - tenta do cache primeiro
+          const cache = await caches.open('iss-app-v4.0.0');
+          response = await cache.match(url);
+          
+          // Se não encontrou no cache e está online, tenta fazer fetch
+          if (!response && navigator.onLine) {
+            response = await fetch(url, { cache: "force-cache" });
+            if (response.ok) {
+              // Adiciona ao cache para uso futuro
+              cache.put(url, response.clone());
+            }
+          }
+        }
+        
+        if (response && response.ok) {
+          const blob = await response.blob();
+          logoDataUrl = await new Promise((resolve) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.readAsDataURL(blob);
           });
-        } catch (e) {
-          throw e;
+          break;
         }
+      } catch (error) {
+        console.log('Falha ao carregar logo:', url, error);
+        continue;
       }
-      
-      (async function loadLogo() {
-        for (const url of LOGO_CANDIDATES) {
-          try {
-            const dataUrl = await fetchAsDataURL(url);
-            if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
-              logoDataUrl = dataUrl;
-              break;
-            }
-          } catch (e) { 
-            console.log('Falha ao carregar logo:', url, e);
-          }
-        }
-        logoImgEl.src = logoDataUrl;
-      })();
+    }
+    
+    logoImgEl.src = logoDataUrl;
+    return logoDataUrl;
+  }
+
+  // ========= APPLICATION CODE =========
+  document.addEventListener('DOMContentLoaded', async function() {
+    // Carrega o logo assim que possível
+    await loadLogoWithFallback();
 
       // ========= DADOS DOS ITENS (mapeados do original) =========
       const formItems = [
@@ -817,32 +838,45 @@
         resultBar.className = `h-4 rounded-full result-bar ${barColors[concept] || 'bg-gray-400'}`;
       }
 
-      // ========= GERAÇÃO DO PDF =========
-      document.getElementById('generate-pdf').addEventListener('click', function() {
-        const jspdfNs = window.jspdf;
-        if (!jspdfNs || !jspdfNs.jsPDF) {
-          console.error('jsPDF não carregado. Verifique o CDN e a ordem dos scripts.');
-          alert('jsPDF não foi carregado. Confira o console.');
-          return;
-        }
-        const { jsPDF } = jspdfNs;
+    // ========= GERAÇÃO DO PDF ATUALIZADA =========
+    document.getElementById('generate-pdf').addEventListener('click', function() {
+      const jspdfNs = window.jspdf;
+      if (!jspdfNs || !jspdfNs.jsPDF) {
+        console.error('jsPDF não carregado. Verifique o CDN e a ordem dos scripts.');
+        alert('jsPDF não foi carregado. Confira o console.');
+        return;
+      }
+      const { jsPDF } = jspdfNs;
 
-        (async function generate() {
-          const doc = new jsPDF();
+      (async function generate() {
+        const doc = new jsPDF();
+        
+        // Tenta recarregar o logo antes de gerar o PDF para garantir que temos a versão mais recente
+        const currentLogoDataUrl = await loadLogoWithFallback();
 
-          const addHeader = () => {
-            if (logoDataUrl) {
-              try { 
-                doc.addImage(logoDataUrl, 'PNG', 14, 6, 25, 7);
-              } catch (e) { /* se falhar, segue sem logo */ }
+        const addHeader = () => {
+          if (currentLogoDataUrl) {
+            try { 
+              // Adiciona o logo com tratamento de erro
+              doc.addImage(currentLogoDataUrl, 'PNG', 14, 6, 25, 7);
+            } catch (e) { 
+              console.log('Erro ao adicionar logo no PDF:', e);
+              // Adiciona um placeholder se o logo falhar
+              doc.setFillColor(30, 64, 175);
+              doc.rect(14, 6, 25, 7, 'F');
+              doc.setTextColor(255, 255, 255);
+              doc.setFontSize(6);
+              doc.text('LOGO', 19, 10);
+              doc.setTextColor(0, 0, 0);
             }
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text('INSPEÇÃO SEMANAL DE SEGURANÇA (ISS)', doc.internal.pageSize.getWidth() / 2, 12, { align: 'center' });
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.text('GESTÃO DE SEGURANÇA E SAÚDE PARA CONTRATADAS DE INVESTIMENTOS', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
-          };
+          }
+          doc.setFontSize(16);
+          doc.setFont('helvetica', 'bold');
+          doc.text('INSPEÇÃO SEMANAL DE SEGURANÇA (ISS)', doc.internal.pageSize.getWidth() / 2, 12, { align: 'center' });
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.text('GESTÃO DE SEGURANÇA E SAÚDE PARA CONTRATADAS DE INVESTIMENTOS', doc.internal.pageSize.getWidth() / 2, 18, { align: 'center' });
+        };
 
           const addGeneralInfo = () => {
             const dateInput = document.getElementById('data');
@@ -1059,20 +1093,21 @@
           };
 
           // ==== EXECUÇÃO ====
-          addHeader();
-          const infoY = addGeneralInfo();
-          const afterSummary = addResultSummary(infoY);
-          const afterTables = addFormTables(afterSummary);
-          await addPieChartAndNonConfs(afterTables);
+        addHeader();
+        const infoY = addGeneralInfo();
+        const afterSummary = addResultSummary(infoY);
+        const afterTables = addFormTables(afterSummary);
+        await addPieChartAndNonConfs(afterTables);
 
-          const nome = document.getElementById('inspecao_no').value || 'report';
-          doc.save(`iss_${nome}.pdf`);
-        })().catch(err => {
-          console.error('Erro ao gerar PDF:', err);
-          alert('Ocorreu um erro ao gerar o PDF. Verifique o console.');
-        });
+        const nome = document.getElementById('inspecao_no').value || 'report';
+        doc.save(`iss_${nome}.pdf`);
+      })().catch(err => {
+        console.error('Erro ao gerar PDF:', err);
+        alert('Ocorreu um erro ao gerar o PDF. Verifique o console.');
       });
     });
+  });
+</script>
   </script>
 </body>
 </html>
